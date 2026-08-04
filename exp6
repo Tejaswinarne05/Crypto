@@ -1,0 +1,40 @@
+#include <stdio.h>
+#include <string.h>
+#define BLOCK 8
+
+// Simple block cipher: XOR with key
+void enc(unsigned char *in,unsigned char *out,unsigned char key){
+    for(int i=0;i<BLOCK;i++) out[i]=in[i]^key;
+}
+void dec(unsigned char *in,unsigned char *out,unsigned char key){
+    for(int i=0;i<BLOCK;i++) out[i]=in[i]^key;
+}
+
+int main(){
+    unsigned char plain[16]="HELLOWORLD12345"; // 2 blocks
+    unsigned char cipher[16],decpt[16];
+    unsigned char key=0xAA,IV=0x55;
+
+    // ECB mode
+    enc(plain,cipher,key); enc(plain+BLOCK,cipher+BLOCK,key);
+    cipher[0]^=0xFF; // error in C1
+    dec(cipher,decpt,key); dec(cipher+BLOCK,decpt+BLOCK,key);
+    printf("ECB: Only P1 corrupted\n");
+
+    // CBC mode
+    unsigned char prev[BLOCK]; for(int i=0;i<BLOCK;i++) prev[i]=IV;
+    for(int i=0;i<2;i++){unsigned char tmp[BLOCK];
+        for(int j=0;j<BLOCK;j++) tmp[j]=plain[i*BLOCK+j]^prev[j];
+        enc(tmp,cipher+i*BLOCK,key);
+        for(int j=0;j<BLOCK;j++) prev[j]=cipher[i*BLOCK+j];
+    }
+    cipher[0]^=0xFF; // error in C1
+    for(int i=0;i<BLOCK;i++) prev[i]=IV;
+    for(int i=0;i<2;i++){unsigned char tmp[BLOCK];
+        dec(cipher+i*BLOCK,tmp,key);
+        for(int j=0;j<BLOCK;j++) decpt[i*BLOCK+j]=tmp[j]^prev[j];
+        for(int j=0;j<BLOCK;j++) prev[j]=cipher[i*BLOCK+j];
+    }
+    printf("CBC: P1 and P2 corrupted, beyond unaffected\n");
+    return 0;
+}
